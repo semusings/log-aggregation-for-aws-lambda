@@ -1,0 +1,144 @@
+service:
+  name: order-apis
+
+plugins:
+- serverless-pseudo-parameters
+- serverless-iam-roles-per-function
+
+custom:
+  region: ${opt:region, self:provider.region}
+  stage: ${opt:stage}
+  prefix: ${self:service}-${self:custom.stage}
+  dynamodb_table: ${self:custom.prefix}-order
+  dynamodb_arn: arn:aws:dynamodb:${self:custom.region}:*:table/${self:custom.dynamodb_table}
+
+provider:
+  name: aws
+  runtime: nodejs8.10
+  region: ${opt:region, 'us-east-1'}
+  timeout: 30
+  iamRoleStatements:
+  - Effect: Allow
+    Action:
+    - dynamodb:Query
+    - dynamodb:Scan
+    - dynamodb:GetItem
+    - dynamodb:PutItem
+    - dynamodb:UpdateItem
+    - dynamodb:DeleteItem
+    - dynamodb:DescribeTable
+    Resource: ${self:custom.dynamodb_arn}
+  environment:
+    DYNAMO_TABLE: ${self:custom.dynamodb_table}
+
+package:
+  exclude:
+  - .idea/**
+  - .git/**
+  - tmp/**
+
+functions:
+
+  create-order:
+    handler: functions/create-order/handler.handle
+    description: Create new order
+    events:
+    - http:
+        path: orders
+        method: post
+
+  get-orders:
+    handler: functions/get-orders/handler.handle
+    description: Get orders
+    events:
+    - http:
+        path: orders
+        method: get
+
+  ship-logs-to-elk:
+    handler: functions/ship-logs-to-elk/handler.handle
+    description: Sends CloudWatch logs from Kinesis to ELK
+    events:
+    - stream:
+        type: kinesis
+        arn:
+          Fn::GetAtt:
+          - KinesisLogsStream
+          - Arn
+    environment:
+      logstash_host: listener.logz.io #<INSERT VALUE HERE>
+      logstash_port: 5050 #<INSERT VALUE HERE>
+      token: <INSERT VALUE HERE>
+
+resources:
+  Resources:
+    Order:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:custom.dynamodb_table}
+        AttributeDefinitions:
+        - AttributeName: orderId
+          AttributeType: S
+        KeySchema:
+        - AttributeName: orderId
+          KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+    KinesisLogsStream:
+      Type: AWS::Kinesis::Stream
+      Properties:
+        Name: ${self:custom.prefix}-logs
+        ShardCount: 1
+    CWLtoKinesisRole:
+      Type: AWS::IAM::Role
+      Properties:
+        RoleName: ${self:custom.prefix}-CWLtoKinesisRole
+        AssumeRolePolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Principal:
+              Service: logs.${self:custom.region}.amazonaws.com
+            Action: sts:AssumeRole
+    PermissionsPolicyForCWL:
+      Type: AWS::IAM::Policy
+      DependsOn:
+      - CWLtoKinesisRole
+      - KinesisLogsStream
+      Properties:
+        PolicyName: ${self:custom.prefix}-PermissionsPolicyForCWL
+        Roles:
+        - Ref: CWLtoKinesisRole
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action: kinesis:PutRecord
+            Resource:
+              Fn::GetAtt:
+              - KinesisLogsStream
+              - Arn
+          - Effect: Allow
+            Action: iam:PassRole
+            Resource:
+              Fn::GetAtt:
+              - CWLtoKinesisRole
+              - Arn
+    CWLtoKinesisSubscription:
+      Type: AWS::Logs::SubscriptionFilter
+      DependsOn:
+      - CWLtoKinesisRole
+      - PermissionsPolicyForCWL
+      - KinesisLogsStream
+      Properties:
+        DestinationArn:
+          Fn::GetAtt:
+          - KinesisLogsStream
+          - Arn
+        RoleArn:
+          Fn::GetAtt:
+          - CWLtoKinesisRole
+          - Arn
+        FilterPattern: ""
+        LogGroupName: /aws/lambda/${self:custom.prefix}-create-order

@@ -1,0 +1,27 @@
+{
+  "name": "log-aggregation-for-aws-lambda",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/BhuwanUpadhyay/log-aggregation-for-aws-lambda.git"
+  },
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/BhuwanUpadhyay/log-aggregation-for-aws-lambda/issues"
+  },
+  "homepage": "https://github.com/BhuwanUpadhyay/log-aggregation-for-aws-lambda#readme",
+  "dependencies": {
+    "aws-sdk": "^2.315.0"
+  },
+  "devDependencies": {
+    "serverless": "^1.31.0",
+    "serverless-iam-roles-per-function": "^1.0.4",
+    "serverless-pseudo-parameters": "^2.2.0"
+  }
+}
