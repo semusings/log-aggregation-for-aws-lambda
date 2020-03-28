@@ -12,7 +12,7 @@ help:
 
 ##@ Development
 
-clean: ## Test the project
+clean: ## Remove the project
 	./build.sh remove staging
 
 ##@ Releasing
