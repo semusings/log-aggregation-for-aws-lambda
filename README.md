@@ -1,15 +1,3 @@
 # Log aggregation for AWS Lambda
-```
----------------------------------------------------------------------------------------
 
-                                Log aggregation for AWS Lambda
-
----------------------------------------------------------------------------------------
-
-Usage: make <target>
-
-Development
-  clean                      Remove the project
-
-Releasing
-```
+https://bhuwanupadhyay.github.io/2018/09/log-aggregation-for-aws-lambda/
